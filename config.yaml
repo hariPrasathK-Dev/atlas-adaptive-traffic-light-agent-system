@@ -1,0 +1,32 @@
+# ATLAS Configuration
+# Adaptive Traffic Light Agent System
+
+simulation:
+  duration: 300  # Simulation timesteps
+  random_seed: 42  # Reproducibility
+  grid_size: 3  # 3x3 intersection grid
+
+traffic:
+  normal_arrival_rate: 1.0  # Vehicles per timestep
+  heavy_arrival_rate: 2.5  # High congestion scenario
+  unequal_ns_rate: 2.0  # North-South direction
+  unequal_ew_rate: 0.5  # East-West direction
+
+signal:
+  min_green: 10  # Minimum green time (seconds)
+  max_green: 45  # Maximum green time (seconds)
+  yellow: 3  # Yellow transition time
+  all_red: 1  # All-red clearance time
+
+ai:
+  coordination_weight: 0.30  # Weight for neighbor pressure
+  phase_switch_threshold: 1.15  # Pressure ratio to switch phases
+
+road:
+  default_length: 100  # meters
+  default_capacity: 20  # vehicles
+  default_speed_limit: 50  # km/h
+
+visualization:
+  update_interval: 100  # milliseconds
+  chart_history: 100  # timesteps to display

@@ -1,0 +1,27 @@
+# ATLAS - Adaptive Traffic Light Agent System
+# Dependencies for classical AI simulation
+
+# Agent-based simulation
+mesa>=2.1.0
+
+# Graph algorithms and A* search
+networkx>=3.1
+
+# Numerical computation
+numpy>=1.24.0
+
+# Data analysis and metrics
+pandas>=2.0.0
+
+# Interactive visualization
+plotly>=5.14.0
+
+# Dashboard UI
+streamlit>=1.28.0
+
+# Configuration management
+pyyaml>=6.0
+
+# Testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
