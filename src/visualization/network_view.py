@@ -1,172 +1,272 @@
 """
 Network Visualization for ATLAS
-Interactive road network display
+Interactive road network display with live vehicle positions
 """
 
 import streamlit as st
 import plotly.graph_objects as go
 from typing import Dict, List, Tuple
+import numpy as np
 
 
-def get_signal_color(phase: str) -> str:
-    """
-    Get color for signal phase visualization.
-    
-    Args:
-        phase: Signal phase name
-        
-    Returns:
-        Color hex code
-    """
-    colors = {
-        'ns_green': '#00FF00',
-        'ns_yellow': '#FFFF00',
-        'ew_green': '#00FF00',
-        'ew_yellow': '#FFFF00',
-        'all_red_ns': '#FF0000',
-        'all_red_ew': '#FF0000'
-    }
-    return colors.get(phase, '#999999')
+# ─────────────────────────────────────────────
+# Colour helpers
+# ─────────────────────────────────────────────
+
+PHASE_COLORS = {
+    'ns_green':   '#00CC44',
+    'ew_green':   '#00CC44',
+    'ns_yellow':  '#FFD700',
+    'ew_yellow':  '#FFD700',
+    'all_red_ns': '#FF3333',
+    'all_red_ew': '#FF3333',
+}
+
+PHASE_LABELS = {
+    'ns_green':   'NS GREEN',
+    'ew_green':   'EW GREEN',
+    'ns_yellow':  'NS YELLOW',
+    'ew_yellow':  'EW YELLOW',
+    'all_red_ns': 'ALL RED',
+    'all_red_ew': 'ALL RED',
+}
+
+
+def _road_color(road):
+    if road.blocked:
+        return '#FF3333', 5
+    if road.congestion_ratio > 0.7:
+        return '#FF8C00', 4
+    if road.congestion_ratio > 0.4:
+        return '#FFD700', 3
+    return '#B0B8C1', 2
+
+
+def _lerp(p0, p1, t):
+    return (p0[0] + t * (p1[0] - p0[0]),
+            p0[1] + t * (p1[1] - p0[1]))
 
 
 def render_network_view(simulation):
     """
     Render interactive network view with roads, intersections, and vehicles.
-    
-    Args:
-        simulation: ATLASSimulation instance
     """
-    st.subheader("🗺️ Traffic Network View")
-    
     network = simulation.network
-    
-    # Create figure
     fig = go.Figure()
-    
-    # Draw roads (edges)
+
+    # ── 1. Roads ──────────────────────────────────────────────────────────────
     for (source, dest), road in network.roads.items():
-        source_pos = network.get_position(source)
-        dest_pos = network.get_position(dest)
-        
-        # Determine road color based on congestion
-        if road.blocked:
-            color = 'red'
-            width = 4
-        elif road.congestion_ratio > 0.7:
-            color = 'orange'
-            width = 3
-        elif road.congestion_ratio > 0.4:
-            color = 'yellow'
-            width = 2
-        else:
-            color = 'lightgray'
-            width = 2
-        
-        # Draw road
+        sx, sy = network.get_position(source)
+        dx, dy = network.get_position(dest)
+        color, width = _road_color(road)
+
+        hover_txt = (
+            f"<b>{source} → {dest}</b><br>"
+            f"Vehicles: {len(road.vehicles)}<br>"
+            f"Congestion: {road.congestion_ratio:.0%}"
+            + ("<br>🚫 BLOCKED" if road.blocked else "")
+        )
         fig.add_trace(go.Scatter(
-            x=[source_pos[0], dest_pos[0]],
-            y=[source_pos[1], dest_pos[1]],
+            x=[sx, dx], y=[sy, dy],
             mode='lines',
             line=dict(color=color, width=width),
-            hovertext=f"{source} → {dest}<br>Vehicles: {len(road.vehicles)}<br>Congestion: {road.congestion_ratio:.1%}",
+            hovertext=hover_txt,
             hoverinfo='text',
-            showlegend=False
+            showlegend=False,
         ))
-        
-        # Add arrow for direction
-        mid_x = (source_pos[0] + dest_pos[0]) / 2
-        mid_y = (source_pos[1] + dest_pos[1]) / 2
-        dx = dest_pos[0] - source_pos[0]
-        dy = dest_pos[1] - source_pos[1]
-        
+
+        # Direction arrow
+        mx, my = (sx + dx) / 2, (sy + dy) / 2
+        ox, oy = (dx - sx) * 0.1, (dy - sy) * 0.1
         fig.add_annotation(
-            x=mid_x,
-            y=mid_y,
-            ax=mid_x - dx * 0.1,
-            ay=mid_y - dy * 0.1,
-            xref='x',
-            yref='y',
-            axref='x',
-            ayref='y',
+            x=mx, y=my,
+            ax=mx - ox, ay=my - oy,
+            xref='x', yref='y', axref='x', ayref='y',
             showarrow=True,
-            arrowhead=2,
-            arrowsize=1,
-            arrowwidth=1,
-            arrowcolor=color
+            arrowhead=3, arrowsize=1.2, arrowwidth=1.5,
+            arrowcolor=color,
         )
-    
-    # Draw intersections (nodes)
-    for intersection_id in network.intersections:
-        pos = network.get_position(intersection_id)
-        
-        # Determine intersection color based on signal state
-        if intersection_id in simulation.signal_agents:
-            signal = simulation.signal_agents[intersection_id]
-            node_color = get_signal_color(signal.current_phase.value)
-            
-            # Create hover text
-            hover_text = (
-                f"<b>{intersection_id}</b><br>"
-                f"Phase: {signal.current_phase.value.upper()}<br>"
+
+    # ── 2. Vehicles on roads ──────────────────────────────────────────────────
+    # Build a set of vehicle IDs that are already placed on a road segment
+    STATE_MAP = {
+        'moving':    ('Moving',    '#00BFFF'),
+        'waiting':   ('Waiting',   '#FF8C00'),
+        'rerouting': ('Rerouting', '#DA70D6'),
+        'stuck':     ('Stuck',     '#FF3333'),
+        'planning':  ('Planning',  '#AAAAAA'),
+    }
+
+    vxs, vys, vhovers, vcolors = [], [], [], []
+    # track which vehicles have been placed (they appear in road.vehicles)
+    placed_ids = set()
+
+    for (source, dest), road in network.roads.items():
+        if not road.vehicles:
+            continue
+        sx, sy = network.get_position(source)
+        dx, dy = network.get_position(dest)
+        n = len(road.vehicles)
+
+        for i, vid in enumerate(road.vehicles):
+            placed_ids.add(vid)
+            t = 0.2 + 0.6 * (i + 1) / (n + 1)
+            vx, vy = _lerp((sx, sy), (dx, dy), t)
+            vxs.append(vx)
+            vys.append(vy)
+
+            v = simulation.vehicle_agents.get(vid)
+            if v:
+                label, vcol = STATE_MAP.get(v.state.value, ('Moving', '#00BFFF'))
+                hover = (
+                    f"<b>{vid}</b> — {label}<br>"
+                    f"On road: {source}→{dest}<br>"
+                    f"Dest: {v.destination}<br>"
+                    f"Wait: {v.waiting_time}s | Trip: {v.total_travel_time}s"
+                )
+            else:
+                hover = f"<b>{vid}</b>"
+                vcol = '#00BFFF'
+
+            vhovers.append(hover)
+            vcolors.append(vcol)
+
+    # ── Vehicles at intersection nodes (current_road is None / not yet on a road) ──
+    # Collect them per node so we can offset multiple vehicles at the same intersection
+    node_vehicles: dict = {}
+    for vid, v in simulation.vehicle_agents.items():
+        if vid not in placed_ids:
+            node = v.current_node
+            node_vehicles.setdefault(node, []).append(vid)
+
+    OFFSETS = [(25, 0), (-25, 0), (0, 25), (0, -25),
+               (20, 20), (-20, 20), (20, -20), (-20, -20)]
+
+    for node, vids in node_vehicles.items():
+        nx, ny = network.get_position(node)
+        for k, vid in enumerate(vids):
+            ox, oy = OFFSETS[k % len(OFFSETS)]
+            vxs.append(nx + ox)
+            vys.append(ny + oy)
+
+            v = simulation.vehicle_agents.get(vid)
+            if v:
+                label, vcol = STATE_MAP.get(v.state.value, ('Moving', '#00BFFF'))
+                hover = (
+                    f"<b>{vid}</b> — {label}<br>"
+                    f"At node: {node}<br>"
+                    f"Dest: {v.destination}<br>"
+                    f"Wait: {v.waiting_time}s | Trip: {v.total_travel_time}s"
+                )
+            else:
+                hover = f"<b>{vid}</b>"
+                vcol = '#AAAAAA'
+
+            vhovers.append(hover)
+            vcolors.append(vcol)
+
+    if vxs:
+        fig.add_trace(go.Scatter(
+            x=vxs, y=vys,
+            mode='markers',
+            marker=dict(
+                symbol='circle',
+                size=11,
+                color=vcolors,
+                line=dict(color='white', width=1.5),
+            ),
+            hovertext=vhovers,
+            hoverinfo='text',
+            name='Vehicles',
+            showlegend=True,
+        ))
+
+    # ── 3. Intersection nodes ──────────────────────────────────────────────────
+    for iid in network.intersections:
+        px, py = network.get_position(iid)
+
+        if iid in simulation.signal_agents:
+            signal = simulation.signal_agents[iid]
+            phase  = signal.current_phase.value
+            color  = PHASE_COLORS.get(phase, '#888888')
+            label  = PHASE_LABELS.get(phase, phase)
+            ns_q = signal.queue_state.get('north', 0) + signal.queue_state.get('south', 0)
+            ew_q = signal.queue_state.get('east',  0) + signal.queue_state.get('west',  0)
+            hover = (
+                f"<b>{iid}</b><br>"
+                f"Phase: {label}<br>"
                 f"Elapsed: {signal.phase_elapsed}s<br>"
-                f"NS Queue: {signal.queue_state.get('north', 0) + signal.queue_state.get('south', 0)}<br>"
-                f"EW Queue: {signal.queue_state.get('east', 0) + signal.queue_state.get('west', 0)}"
+                f"NS queue: {ns_q}  |  EW queue: {ew_q}<br>"
+                f"Phase changes: {signal.phase_changes}"
             )
         else:
-            node_color = 'gray'
-            hover_text = f"<b>{intersection_id}</b>"
-        
-        # Draw intersection
+            color = '#666666'
+            hover = f"<b>{iid}</b>"
+
         fig.add_trace(go.Scatter(
-            x=[pos[0]],
-            y=[pos[1]],
+            x=[px], y=[py],
             mode='markers+text',
-            marker=dict(
-                size=30,
-                color=node_color,
-                line=dict(color='black', width=2)
-            ),
-            text=intersection_id,
+            marker=dict(size=40, color=color, line=dict(color='#111', width=2.5)),
+            text=iid,
             textposition='middle center',
-            textfont=dict(size=10, color='black'),
-            hovertext=hover_text,
+            textfont=dict(size=9, color='black', family='Arial Black'),
+            hovertext=hover,
             hoverinfo='text',
-            showlegend=False
+            showlegend=False,
         ))
-    
-    # Update layout
+
+    # ── 4. Layout ──────────────────────────────────────────────────────────────
+    positions = [network.get_position(i) for i in network.intersections]
+    xs = [p[0] for p in positions]
+    ys = [p[1] for p in positions]
+    pad = 100
+
     fig.update_layout(
-        title="Traffic Network with Signal States",
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        plot_bgcolor='white',
-        height=600,
-        showlegend=False,
-        hovermode='closest'
+        title=dict(
+            text=f"Live Traffic Network  —  Step {simulation.current_step} / {simulation.duration}",
+            font=dict(size=14, color='white'),
+        ),
+        xaxis=dict(
+            showgrid=False, zeroline=False, showticklabels=False,
+            range=[min(xs) - pad, max(xs) + pad],
+        ),
+        yaxis=dict(
+            showgrid=False, zeroline=False, showticklabels=False,
+            range=[min(ys) - pad, max(ys) + pad],
+            scaleanchor='x',
+            scaleratio=1,
+        ),
+        plot_bgcolor='#0F1117',
+        paper_bgcolor='#0F1117',
+        font=dict(color='white'),
+        height=580,
+        margin=dict(l=10, r=10, t=50, b=10),
+        showlegend=True,
+        legend=dict(
+            x=0.01, y=0.99,
+            bgcolor='rgba(20,20,30,0.85)',
+            bordercolor='#555',
+            borderwidth=1,
+            font=dict(color='white', size=11),
+        ),
+        hovermode='closest',
     )
-    
-    # Display figure
-    st.plotly_chart(fig, width="stretch")
-    
-    # Legend
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("**Signals:** 🟢 Green | 🟡 Yellow | 🔴 Red")
-    with col2:
-        st.markdown("**Roads:** Gray = Clear | Yellow = Moderate | Orange = Congested | Red = Blocked")
-    with col3:
-        st.markdown(f"**Active Vehicles:** {len(simulation.vehicle_agents)}")
-    
-    # Network statistics
-    st.divider()
+
+    # Use unique key tied to current_step so Streamlit re-renders every step
+    st.plotly_chart(fig, use_container_width=True,
+                    key=f"net_{simulation.current_step}")
+
+    # ── 5. Quick stats (all live / change as simulation runs) ─────────────────
     stats = network.get_statistics()
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Intersections", stats['num_intersections'])
-    with col2:
-        st.metric("Roads", stats['num_roads'])
-    with col3:
-        st.metric("Congested Roads", stats['congested_roads'])
-    with col4:
-        st.metric("Avg Congestion", f"{stats['avg_congestion']:.1%}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Active Vehicles",  len(simulation.vehicle_agents))
+    c2.metric("Completed Trips",  len(simulation.completed_vehicles))
+    c3.metric("Total Spawned",    simulation.total_vehicles_spawned)
+    c4.metric("Congested Roads",  f"{stats['congested_roads']} / {stats['num_roads']}")
+
+    st.caption(
+        "**Nodes:** 🟢 NS/EW Green | 🟡 Yellow | 🔴 All-Red  ·  "
+        "**Roads:** Light = Clear | Yellow = Moderate | Orange = Congested | Red = Blocked  ·  "
+        "**Dots:** 🔵 Moving | 🟠 Waiting | 🔴 Stuck"
+    )
+
