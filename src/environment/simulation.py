@@ -107,8 +107,11 @@ class ATLASSimulation(Model):
         random.seed(self.random_seed)
         np.random.seed(self.random_seed)
         
-        # Clear agents (Mesa 3.x)
-        self.remove_all_agents()
+        # Remove all agents via Mesa 3.x API, then clear dicts
+        for agent in list(self.signal_agents.values()):
+            agent.remove()
+        for agent in list(self.vehicle_agents.values()):
+            agent.remove()
         self.signal_agents.clear()
         self.vehicle_agents.clear()
         
@@ -313,7 +316,7 @@ class ATLASSimulation(Model):
         """
         if vehicle_id in self.vehicle_agents:
             agent = self.vehicle_agents[vehicle_id]
-            self.deregister_agent(agent)
+            agent.remove()  # Mesa 3.x API
             del self.vehicle_agents[vehicle_id]
     
     def mark_vehicle_completed(self, vehicle_agent):

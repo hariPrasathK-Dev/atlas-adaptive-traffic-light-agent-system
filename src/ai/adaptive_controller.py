@@ -150,7 +150,8 @@ class AdaptiveController:
         all_red_time = observation.get('all_red_time', 1)
         
         # Handle green phases (adaptive decision)
-        if current_phase in ['NS_GREEN', 'EW_GREEN']:
+        # NOTE: phase values are lowercase (matching SignalPhase enum e.g. 'ns_green')
+        if current_phase in ['ns_green', 'ew_green']:
             # Calculate pressures
             ns_local = self.calculate_local_pressure(
                 observation.get('ns_queue', 0),
@@ -171,30 +172,30 @@ class AdaptiveController:
                 observation.get('ew_downstream_pressure')
             )
             
-            # Store for logging (will be accessed by signal agent)
+            # Store for logging/explanation
             observation['_ns_pressure'] = ns_pressure
             observation['_ew_pressure'] = ew_pressure
             observation['_ns_local'] = ns_local
             observation['_ew_local'] = ew_local
             
             # Decide based on current phase
-            if current_phase == 'NS_GREEN':
+            if current_phase == 'ns_green':
                 if self.should_switch_phase(ns_pressure, ew_pressure, phase_elapsed):
                     return "SWITCH"
-            else:  # EW_GREEN
+            else:  # ew_green
                 if self.should_switch_phase(ew_pressure, ns_pressure, phase_elapsed):
                     return "SWITCH"
             
             return "MAINTAIN"
         
         # Handle yellow phases (always fixed duration)
-        elif current_phase in ['NS_YELLOW', 'EW_YELLOW']:
+        elif current_phase in ['ns_yellow', 'ew_yellow']:
             if phase_elapsed >= yellow_time:
                 return "SWITCH"
             return "MAINTAIN"
         
         # Handle all-red phases (always fixed duration)
-        elif current_phase in ['ALL_RED_NS', 'ALL_RED_EW']:
+        elif current_phase in ['all_red_ns', 'all_red_ew']:
             if phase_elapsed >= all_red_time:
                 return "SWITCH"
             return "MAINTAIN"
@@ -215,7 +216,7 @@ class AdaptiveController:
         current_phase = observation.get('current_phase')
         phase_elapsed = observation.get('phase_elapsed', 0)
         
-        if current_phase in ['NS_GREEN', 'EW_GREEN']:
+        if current_phase in ['ns_green', 'ew_green']:
             ns_pressure = observation.get('_ns_pressure', 0)
             ew_pressure = observation.get('_ew_pressure', 0)
             ns_local = observation.get('_ns_local', 0)
@@ -225,7 +226,7 @@ class AdaptiveController:
             ew_queue = observation.get('ew_queue', 0)
             
             explanation = (
-                f"Phase: {current_phase} ({phase_elapsed}s)\n"
+                f"Phase: {current_phase.upper()} ({phase_elapsed}s)\n"
                 f"NS Pressure: {ns_pressure:.2f} (local: {ns_local:.2f}, queue: {ns_queue})\n"
                 f"EW Pressure: {ew_pressure:.2f} (local: {ew_local:.2f}, queue: {ew_queue})\n"
             )
@@ -235,7 +236,7 @@ class AdaptiveController:
             elif phase_elapsed >= self.max_green:
                 explanation += f"Decision: SWITCH (max green {self.max_green}s reached)"
             else:
-                if current_phase == 'NS_GREEN':
+                if current_phase == 'ns_green':
                     ratio = ew_pressure / max(ns_pressure, 0.01)
                     explanation += (
                         f"Pressure ratio (EW/NS): {ratio:.2f}\n"
@@ -245,7 +246,7 @@ class AdaptiveController:
                         explanation += "Decision: SWITCH (EW pressure significantly higher)"
                     else:
                         explanation += "Decision: MAINTAIN (NS still has priority)"
-                else:  # EW_GREEN
+                else:  # ew_green
                     ratio = ns_pressure / max(ew_pressure, 0.01)
                     explanation += (
                         f"Pressure ratio (NS/EW): {ratio:.2f}\n"

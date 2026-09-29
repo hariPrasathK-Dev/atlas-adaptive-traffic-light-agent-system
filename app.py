@@ -28,6 +28,9 @@ if 'simulation' not in st.session_state:
     st.session_state.simulation = None
     st.session_state.running = False
     st.session_state.initialized = False
+    # Stores completed run results keyed by controller type for comparison
+    st.session_state.completed_runs = {}  # {'fixed': {...}, 'adaptive': {...}}
+
 
 # Import visualization components
 from src.visualization.dashboard import create_dashboard
