@@ -4,10 +4,17 @@ __pycache__/
 *$py.class
 *.so
 .Python
+
+# Virtual environments
 env/
 venv/
+myvenv/
 .venv/
 ENV/
+env.bak/
+venv.bak/
+
+# Build and distribution
 build/
 develop-eggs/
 dist/
@@ -29,6 +36,10 @@ wheels/
 .coverage
 htmlcov/
 .tox/
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
 
 # IDE
 .vscode/
@@ -36,13 +47,19 @@ htmlcov/
 *.swp
 *.swo
 *~
+.project
+.pydevproject
+.settings/
 
 # OS
 .DS_Store
 Thumbs.db
+*.bak
+*~
 
 # Logs
 *.log
+logs/
 
 # Experiment results
 results/*.csv
@@ -50,3 +67,22 @@ experiments/*.csv
 
 # Streamlit
 .streamlit/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+*.tmp
