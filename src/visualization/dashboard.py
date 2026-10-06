@@ -72,7 +72,7 @@ def create_dashboard(config: Dict[str, Any]):
         # Action buttons
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🎬 Initialize", width="stretch"):
+            if st.button("🎬 Initialize", use_container_width=True):
                 # Create new simulation
                 config['simulation']['duration'] = duration
                 config['simulation']['random_seed'] = int(random_seed)
@@ -87,7 +87,7 @@ def create_dashboard(config: Dict[str, Any]):
                 st.success("✅ Simulation initialized!")
         
         with col2:
-            if st.button("🔄 Reset", width="stretch"):
+            if st.button("🔄 Reset", use_container_width=True):
                 if st.session_state.simulation:
                     st.session_state.simulation.reset()
                     st.session_state.running = False
@@ -99,17 +99,17 @@ def create_dashboard(config: Dict[str, Any]):
         if st.session_state.initialized:
             col1, col2, col3 = st.columns(3)
             with col1:
-                if st.button("▶️ Run" if not st.session_state.running else "⏸️ Pause", width="stretch"):
+                if st.button("▶️ Run" if not st.session_state.running else "⏸️ Pause", use_container_width=True):
                     st.session_state.running = not st.session_state.running
             
             with col2:
-                if st.button("⏭️ Step", width="stretch"):
+                if st.button("⏭️ Step", use_container_width=True):
                     if st.session_state.simulation:
                         st.session_state.simulation.step()
                         st.rerun()
             
             with col3:
-                if st.button("⏹️ Stop", width="stretch"):
+                if st.button("⏹️ Stop", use_container_width=True):
                     st.session_state.running = False
                     if st.session_state.simulation:
                         st.session_state.simulation.stop()

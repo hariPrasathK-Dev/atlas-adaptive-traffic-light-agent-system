@@ -76,19 +76,19 @@ def render_controls(simulation) -> Dict[str, Any]:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("▶️ Start", width="stretch"):
+        if st.button("▶️ Start", use_container_width=True):
             actions['start'] = True
     
     with col2:
-        if st.button("⏸️ Pause", width="stretch"):
+        if st.button("⏸️ Pause", use_container_width=True):
             actions['pause'] = True
     
     with col3:
-        if st.button("⏭️ Step", width="stretch"):
+        if st.button("⏭️ Step", use_container_width=True):
             actions['step'] = True
     
     with col4:
-        if st.button("🔄 Reset", width="stretch"):
+        if st.button("🔄 Reset", use_container_width=True):
             actions['reset'] = True
     
     return actions

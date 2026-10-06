@@ -166,9 +166,14 @@ class VehicleAgent(Agent):
         if self.current_node in self.model.signal_agents:
             signal = self.model.signal_agents[self.current_node]
             
-            # Determine direction of travel
+            # Determine approach direction for traffic signal control.
+            # Signal controls incoming approach roads. If vehicle is on an approach road,
+            # check permission for that approach road's direction.
             from ..environment.road_network import get_direction
-            direction = get_direction(self.current_node, next_node, self.model.grid_size)
+            if self.current_road:
+                direction = get_direction(self.current_road.source, self.current_road.destination, self.model.grid_size)
+            else:
+                direction = get_direction(self.current_node, next_node, self.model.grid_size)
             
             if direction:
                 # Check if signal allows movement in this direction

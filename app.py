@@ -3,6 +3,10 @@ ATLAS - Adaptive Traffic Light Agent System
 Main Streamlit Application Entry Point
 """
 
+import os
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+
 import streamlit as st
 import yaml
 from pathlib import Path
