@@ -119,14 +119,13 @@ class SignalAgent(Agent):
     
     def _update_observations(self):
         """Update traffic observations from environment."""
-        if not self.sensor_enabled:
-            # Sensor failure: use cached/estimated values
-            return
-        
-        # Reset observations
         self.queue_state.clear()
-        for direction in self.wait_state:
+        for direction in list(self.wait_state.keys()):
             self.wait_state[direction].clear()
+            
+        if not self.sensor_enabled:
+            # Sensor failure: unobservable local traffic
+            return
         
         # Get incoming roads
         incoming_roads = self.model.network.get_incoming_roads(self.intersection_id)
@@ -138,7 +137,7 @@ class SignalAgent(Agent):
             
             if direction:
                 # Count vehicles waiting on this road
-                self.queue_state[direction] = len(road.vehicles)
+                self.queue_state[direction] += len(road.vehicles)
                 
                 # Collect waiting times
                 for vehicle_id in road.vehicles:
@@ -160,17 +159,26 @@ class SignalAgent(Agent):
         if not waits:
             return 0.0
         return sum(waits) / len(waits)
+
+    def _get_combined_average_wait(self, directions: List[str]) -> float:
+        """Get average waiting time across multiple directions."""
+        waits = []
+        for d in directions:
+            waits.extend(self.wait_state.get(d, []))
+        if not waits:
+            return 0.0
+        return sum(waits) / len(waits)
     
     def _get_ns_pressure(self) -> float:
         """Calculate combined North-South pressure."""
         ns_queue = self.queue_state.get('north', 0) + self.queue_state.get('south', 0)
-        ns_wait = (self._get_average_wait('north') + self._get_average_wait('south')) / 2
+        ns_wait = self._get_combined_average_wait(['north', 'south'])
         return ns_queue * ns_wait
     
     def _get_ew_pressure(self) -> float:
         """Calculate combined East-West pressure."""
         ew_queue = self.queue_state.get('east', 0) + self.queue_state.get('west', 0)
-        ew_wait = (self._get_average_wait('east') + self._get_average_wait('west')) / 2
+        ew_wait = self._get_combined_average_wait(['east', 'west'])
         return ew_queue * ew_wait
     
     def _build_observation(self) -> Dict[str, Any]:
@@ -194,8 +202,8 @@ class SignalAgent(Agent):
             # Local observations
             'ns_queue': self.queue_state.get('north', 0) + self.queue_state.get('south', 0),
             'ew_queue': self.queue_state.get('east', 0) + self.queue_state.get('west', 0),
-            'ns_avg_wait': (self._get_average_wait('north') + self._get_average_wait('south')) / 2,
-            'ew_avg_wait': (self._get_average_wait('east') + self._get_average_wait('west')) / 2,
+            'ns_avg_wait': self._get_combined_average_wait(['north', 'south']),
+            'ew_avg_wait': self._get_combined_average_wait(['east', 'west']),
             
             # Neighbor coordination (if available)
             'ns_downstream_pressure': self._get_neighbor_pressure(['north', 'south']),
@@ -248,40 +256,58 @@ class SignalAgent(Agent):
         else:
             # MAINTAIN or EXTEND: just increment time
             self.phase_elapsed += 1
-    
+
+    def _receive_neighbor_messages(self):
+        """Receive state messages from neighbors via MessageBus."""
+        if not self.communication_enabled:
+            self.neighbor_states.clear()
+            return
+            
+        if hasattr(self.model, 'message_bus') and self.model.message_bus:
+            messages = self.model.message_bus.receive(self.intersection_id)
+            for msg in messages:
+                sender = msg.get('sender') or msg.get('_sender')
+                if sender:
+                    self.neighbor_states[sender] = msg
+
     def _send_state_to_neighbors(self):
         """Send current state to neighboring intersections."""
         if not self.communication_enabled:
             return
         
-        # Get message bus (will be implemented in task 6)
-        # For now, directly update neighbor states
-        message = {
-            'sender': self.intersection_id,
-            'timestamp': self.model.current_step,
-            'phase': self.current_phase.value,
-            'pressure': self._get_ns_pressure() + self._get_ew_pressure(),
-            'ns_queue': self.queue_state.get('north', 0) + self.queue_state.get('south', 0),
-            'ew_queue': self.queue_state.get('east', 0) + self.queue_state.get('west', 0)
-        }
+        from ..communication.message_bus import MessageProtocol
+        ns_q = self.queue_state.get('north', 0) + self.queue_state.get('south', 0)
+        ew_q = self.queue_state.get('east', 0) + self.queue_state.get('west', 0)
+        total_pressure = self._get_ns_pressure() + self._get_ew_pressure()
         
-        # Store for neighbors to access
-        for neighbor_id in self.neighbors:
-            if neighbor_id in self.model.signal_agents:
-                neighbor = self.model.signal_agents[neighbor_id]
-                neighbor.neighbor_states[self.intersection_id] = message
+        message = MessageProtocol.traffic_state_message(
+            sender=self.intersection_id,
+            timestamp=self.model.current_step,
+            phase=self.current_phase.value,
+            queue_ns=ns_q,
+            queue_ew=ew_q,
+            pressure=total_pressure
+        )
+        
+        if hasattr(self.model, 'message_bus') and self.model.message_bus:
+            self.model.message_bus.broadcast(self.intersection_id, self.neighbors, message)
     
     def step(self):
         """
         Execute one simulation step.
         
         Agent behavior:
-        1. Update observations (sense)
-        2. Build observation for controller
-        3. Get action from controller (deliberate)
-        4. Execute action (act)
-        5. Send state to neighbors (communicate)
+        1. Receive messages from neighbors
+        2. Update observations (sense)
+        3. Build observation for controller
+        4. Get action from controller (deliberate)
+        5. Execute action (act)
+        6. Send state to neighbors (communicate)
+        7. Log decision
         """
+        # Receive neighbor messages first
+        self._receive_neighbor_messages()
+
         # Sense: Update observations
         self._update_observations()
         
@@ -294,6 +320,20 @@ class SignalAgent(Agent):
         
         # Communicate: Send state to neighbors
         self._send_state_to_neighbors()
+
+        # Log decision
+        if hasattr(self.model, 'decision_log') and self.model.decision_log:
+            reason = self.controller.get_explanation(observation) if hasattr(self.controller, 'get_explanation') else ""
+            self.model.decision_log.log_decision(
+                timestep=self.model.current_step,
+                signal_id=self.intersection_id,
+                current_phase=self.current_phase.value,
+                action=action,
+                phase_elapsed=self.phase_elapsed,
+                observation=observation,
+                controller_type=getattr(self.model, 'controller_type', 'unknown'),
+                reason=reason
+            )
     
     def get_status(self) -> Dict[str, Any]:
         """

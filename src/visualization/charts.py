@@ -109,7 +109,7 @@ def render_metrics_charts(simulation):
     
     fig.update_layout(height=700, showlegend=True)
     
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
     
     # Summary statistics
     st.divider()
@@ -221,7 +221,7 @@ def render_comparison_charts(metrics1, metrics2, label1: str = "Run 1", label2: 
     fig.update_yaxes(title_text="Vehicles", row=1, col=2)
     fig.update_layout(height=400)
     
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
     
     # Detailed comparison table
     st.divider()
@@ -256,4 +256,4 @@ def render_comparison_charts(metrics1, metrics2, label1: str = "Run 1", label2: 
     
     import pandas as pd
     df = pd.DataFrame(comparison_data)
-    st.dataframe(df, width="stretch", hide_index=True)
+    st.dataframe(df, use_container_width=True, hide_index=True)

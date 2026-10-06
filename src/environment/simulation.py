@@ -248,8 +248,15 @@ class ATLASSimulation(Model):
         if len(intersections) < 2:
             return None
         
-        source = random.choice(intersections)
-        destination = random.choice([i for i in intersections if i != source])
+        if self.scenario_name == 'unequal' and random.random() < 0.8 and self.grid_size >= 2:
+            # 80% chance: North-South travel bias (same column in grid)
+            col = random.randint(0, self.grid_size - 1)
+            row_src, row_dst = random.sample(range(self.grid_size), 2)
+            source = f"I{row_src * self.grid_size + col}"
+            destination = f"I{row_dst * self.grid_size + col}"
+        else:
+            source = random.choice(intersections)
+            destination = random.choice([i for i in intersections if i != source])
         
         vehicle_id = f"V{self.vehicle_counter}"
         self.vehicle_counter += 1
