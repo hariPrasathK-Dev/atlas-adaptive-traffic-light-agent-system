@@ -15,7 +15,7 @@ def render_metrics_charts(simulation):
     Args:
         simulation: ATLASSimulation instance
     """
-    st.subheader("📊 Performance Metrics")
+    st.subheader("Performance Metrics")
     
     metrics = simulation.metrics
     
@@ -113,7 +113,7 @@ def render_metrics_charts(simulation):
     
     # Summary statistics
     st.divider()
-    st.subheader("📈 Summary Statistics")
+    st.subheader("Summary Statistics")
     
     summary = metrics.get_summary_statistics()
     if summary:
@@ -142,7 +142,7 @@ def render_comparison_charts(metrics1, metrics2, label1: str = "Run 1", label2: 
         label1: Label for first run
         label2: Label for second run
     """
-    st.subheader("📊 Performance Comparison")
+    st.subheader("Performance Comparison")
     
     if not metrics1.history or not metrics2.history:
         st.warning("Need data from both runs for comparison.")
@@ -225,7 +225,7 @@ def render_comparison_charts(metrics1, metrics2, label1: str = "Run 1", label2: 
     
     # Detailed comparison table
     st.divider()
-    st.subheader("📋 Detailed Comparison")
+    st.subheader("Detailed Comparison")
     
     comparison_data = {
         'Metric': [],

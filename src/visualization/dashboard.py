@@ -36,7 +36,7 @@ def create_dashboard(config: Dict[str, Any]):
     """
     
     # Title and description
-    st.title("🚦 ATLAS - Adaptive Traffic Light Agent System")
+    st.title("ATLAS - Adaptive Traffic Light Agent System")
     st.markdown("""
     **Multi-Agent Traffic Signal Synchronization using Classical AI**
     
@@ -45,7 +45,7 @@ def create_dashboard(config: Dict[str, Any]):
     
     # Sidebar controls
     with st.sidebar:
-        st.header("⚙️ Controls")
+        st.header("Controls")
         
         # Scenario selection
         scenario = render_scenario_selector()
@@ -72,7 +72,7 @@ def create_dashboard(config: Dict[str, Any]):
         # Action buttons
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🎬 Initialize", use_container_width=True):
+            if st.button("Initialize", use_container_width=True):
                 # Create new simulation
                 config['simulation']['duration'] = duration
                 config['simulation']['random_seed'] = int(random_seed)
@@ -84,14 +84,14 @@ def create_dashboard(config: Dict[str, Any]):
                 st.session_state.simulation = sim
                 st.session_state.initialized = True
                 st.session_state.running = False
-                st.success("✅ Simulation initialized!")
+                st.success("Simulation initialized!")
         
         with col2:
-            if st.button("🔄 Reset", use_container_width=True):
+            if st.button("Reset", use_container_width=True):
                 if st.session_state.simulation:
                     st.session_state.simulation.reset()
                     st.session_state.running = False
-                    st.success("✅ Simulation reset!")
+                    st.success("Simulation reset!")
         
         st.divider()
         
@@ -99,17 +99,17 @@ def create_dashboard(config: Dict[str, Any]):
         if st.session_state.initialized:
             col1, col2, col3 = st.columns(3)
             with col1:
-                if st.button("▶️ Run" if not st.session_state.running else "⏸️ Pause", use_container_width=True):
+                if st.button("Run" if not st.session_state.running else "Pause", use_container_width=True):
                     st.session_state.running = not st.session_state.running
             
             with col2:
-                if st.button("⏭️ Step", use_container_width=True):
+                if st.button("Step", use_container_width=True):
                     if st.session_state.simulation:
                         st.session_state.simulation.step()
                         st.rerun()
             
             with col3:
-                if st.button("⏹️ Stop", use_container_width=True):
+                if st.button("Stop", use_container_width=True):
                     st.session_state.running = False
                     if st.session_state.simulation:
                         st.session_state.simulation.stop()
@@ -117,12 +117,12 @@ def create_dashboard(config: Dict[str, Any]):
     # Main content area
     if not st.session_state.initialized:
         # Welcome screen
-        st.info("👈 Configure parameters and click **Initialize** to start")
+        st.info("Configure parameters in the sidebar and click **Initialize** to start")
         
         # Display project information
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Grid Size", "3×3")
+            st.metric("Grid Size", "3x3")
             st.caption("9 intersections")
         with col2:
             st.metric("Agent Types", "2")
@@ -134,7 +134,7 @@ def create_dashboard(config: Dict[str, Any]):
         st.divider()
         
         # PEAS specification
-        st.subheader("📋 PEAS Model for Traffic Signal Agent")
+        st.subheader("PEAS Model for Traffic Signal Agent")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -146,7 +146,7 @@ def create_dashboard(config: Dict[str, Any]):
             - Maximize throughput
             
             **Environment:**
-            - 3×3 intersection grid
+            - 3x3 intersection grid
             - Bidirectional roads
             - Stochastic vehicle arrivals
             - Dynamic traffic patterns
@@ -156,7 +156,7 @@ def create_dashboard(config: Dict[str, Any]):
             st.markdown("""
             **Actuators:**
             - Signal phase control
-            - Safe transitions (GREEN → YELLOW → ALL_RED)
+            - Safe transitions (GREEN -> YELLOW -> ALL_RED)
             
             **Sensors:**
             - Local queue lengths
@@ -182,9 +182,9 @@ def create_dashboard(config: Dict[str, Any]):
         st.rerun()
     elif st.session_state.running and not sim.running:
         st.session_state.running = False
-        # ── Auto-save completed run for comparison ──────────────────────────
+        # Auto-save completed run for comparison
         _save_completed_run(sim)
-        st.success("✅ Simulation complete! Results saved for comparison.")
+        st.success("Simulation complete! Results saved for comparison.")
     
     # Status bar
     state = sim.get_state()
@@ -201,15 +201,15 @@ def create_dashboard(config: Dict[str, Any]):
     with col5:
         st.metric("Controller", controller_type.title())
     with col6:
-        status = "🟢 Running" if sim.running else "🔴 Stopped"
+        status = "Running" if sim.running else "Stopped"
         st.metric("Status", status)
     
     # Create tabs for different views
     tab1, tab2, tab3, tab4 = st.tabs([
-        "🗺️ Network View",
-        "📊 Metrics & Charts",
-        "🤖 AI Decisions",
-        "📈 Comparison"
+        "Network View",
+        "Metrics & Charts",
+        "AI Decisions",
+        "Comparison"
     ])
     
     with tab1:
@@ -257,7 +257,7 @@ def render_ai_decisions(sim: ATLASSimulation):
     Args:
         sim: Simulation instance
     """
-    st.subheader("🤖 AI Decision Explanations")
+    st.subheader("AI Decision Explanations")
 
     if not sim.signal_agents:
         st.warning("No signal agents initialized yet.")
@@ -288,23 +288,26 @@ def render_ai_decisions(sim: ATLASSimulation):
         st.divider()
 
         # Controller explanation
-        st.subheader("📝 Controller Decision")
+        st.subheader("Controller Decision")
 
         observation = signal._build_observation()
 
         if hasattr(signal.controller, 'get_explanation'):
+            # Call get_action first so pressure fields (_ns_pressure, _ew_pressure, etc.)
+            # are populated in the observation dict before calling get_explanation.
+            signal.controller.get_action(observation)
             explanation = signal.controller.get_explanation(observation)
             st.code(explanation, language=None)
         else:
             st.info("Current controller does not provide detailed explanations.")
 
         # Detailed observations
-        with st.expander("🔍 Detailed Observations"):
+        with st.expander("Detailed Observations"):
             st.json(observation)
 
         # Neighbor states
         if signal.neighbor_states:
-            with st.expander("👥 Neighbor States"):
+            with st.expander("Neighbor States"):
                 for neighbor_id, neighbor_state in signal.neighbor_states.items():
                     st.write(f"**{neighbor_id}:**", neighbor_state)
 
@@ -317,37 +320,37 @@ def render_comparison_view(sim: ATLASSimulation, config: Dict[str, Any]):
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
 
-    st.subheader("📈 Performance Comparison: Fixed vs Adaptive")
+    st.subheader("Performance Comparison: Fixed vs Adaptive")
 
     runs = st.session_state.get('completed_runs', {})
 
-    # ── Protocol instructions ─────────────────────────────────────────────────
-    with st.expander("ℹ️ How to compare", expanded=len(runs) < 2):
+    # Protocol instructions
+    with st.expander("How to compare", expanded=len(runs) < 2):
         st.markdown("""
         **Steps:**
-        1. Select **Fixed-Time** controller → click **Initialize** → click **▶️ Run** → wait for completion
-        2. Select **Adaptive** controller → click **Initialize** (same seed & scenario) → click **▶️ Run** → wait
+        1. Select **Fixed-Time** controller -> click **Initialize** -> click **Run** -> wait for completion
+        2. Select **Adaptive** controller -> click **Initialize** (same seed & scenario) -> click **Run** -> wait
         3. Results are saved automatically. Come back here to see the side-by-side comparison.
 
         > **Tip:** Use the same *Random Seed* for a fair comparison — both controllers face identical traffic.
         """)
 
-    # ── Save button for current (possibly mid-run) result ─────────────────────
+    # Save button for current (possibly mid-run) result
     col_save, _ = st.columns([1, 3])
     with col_save:
         if sim.current_step > 0:
-            if st.button("💾 Save current run"):
+            if st.button("Save current run"):
                 _save_completed_run(sim)
                 st.success(f"Saved {sim.controller_type} run ({sim.current_step} steps)")
 
-    # ── Show what's been saved ────────────────────────────────────────────────
+    # Show what's been saved
     if not runs:
         st.info("No completed runs saved yet. Run a simulation and it will be saved here.")
         return
 
     st.divider()
 
-    # ── Single-run summary (only one saved) ──────────────────────────────────
+    # Single-run summary (only one saved)
     if len(runs) == 1:
         key = list(runs.keys())[0]
         r = runs[key]
@@ -355,7 +358,7 @@ def render_comparison_view(sim: ATLASSimulation, config: Dict[str, Any]):
         _render_single_run_stats(r)
         return
 
-    # ── Side-by-side comparison (both runs present) ───────────────────────────
+    # Side-by-side comparison (both runs present)
     fixed = runs.get('fixed')
     adap  = runs.get('adaptive')
 
@@ -373,7 +376,7 @@ def render_comparison_view(sim: ATLASSimulation, config: Dict[str, Any]):
                 f"**Steps:** Fixed={fixed['duration']}, Adaptive={adap['duration']}")
     st.divider()
 
-    # ── Metric tiles with delta ───────────────────────────────────────────────
+    # Metric tiles with delta
     METRICS = [
         ('avg_waiting_time',  'Avg Wait (s)',      True),
         ('max_waiting_time',  'Max Wait (s)',      True),
@@ -389,11 +392,20 @@ def render_comparison_view(sim: ATLASSimulation, config: Dict[str, Any]):
         aval = sa.get(key, 0)
         if fval and fval != 0:
             pct = (aval - fval) / abs(fval) * 100
+        elif aval != 0:
+            # Fixed is 0 but Adaptive is not — treat as large positive change
+            pct = 100.0
         else:
             pct = 0.0
         delta_str = f"{pct:+.1f}%"
-        # delta_color: 'inverse' means green when negative (lower is better)
-        delta_color = 'inverse' if lower_is_better else 'normal'
+        # delta_color:
+        #   'inverse' = green when negative (lower is better)
+        #   'normal'  = green when positive (higher is better)
+        #   'off'     = grey (exact tie — no winner)
+        if pct == 0.0:
+            delta_color = 'off'
+        else:
+            delta_color = 'inverse' if lower_is_better else 'normal'
         col.metric(
             label,
             f"{aval:.1f}" if isinstance(aval, float) else str(aval),
@@ -410,9 +422,9 @@ def render_comparison_view(sim: ATLASSimulation, config: Dict[str, Any]):
     pc3.metric("Spawned (Fixed / Adap)",
                f"{fixed['total_spawned']} / {adap['total_spawned']}")
 
-    # ── Time-series overlay charts ────────────────────────────────────────────
+    # Time-series overlay charts
     st.divider()
-    st.subheader("📊 Time-Series Overlay")
+    st.subheader("Time-Series Overlay")
 
     def ts(run, attr):
         return [getattr(s, attr) for s in run['history']]
@@ -459,22 +471,36 @@ def render_comparison_view(sim: ATLASSimulation, config: Dict[str, Any]):
     fig.update_yaxes(gridcolor='#333')
     st.plotly_chart(fig, use_container_width=True)
 
-    # ── Summary table ─────────────────────────────────────────────────────────
+    # Summary table
     st.divider()
-    st.subheader("📋 Summary Table")
+    st.subheader("Summary Table")
     import pandas as pd
     rows = []
     for key, label, lower_is_better in METRICS:
         fval = sf.get(key, 0)
         aval = sa.get(key, 0)
-        pct  = ((aval - fval) / abs(fval) * 100) if fval else 0.0
-        better = (pct < 0) == lower_is_better  # True if adaptive is better
+        if fval and fval != 0:
+            pct = (aval - fval) / abs(fval) * 100
+        elif aval != 0:
+            pct = 100.0
+        else:
+            pct = 0.0
+        # Determine winner:
+        #   pct == 0  -> genuine tie
+        #   lower_is_better + pct < 0  -> Adaptive improved
+        #   not lower_is_better + pct > 0  -> Adaptive improved
+        if pct == 0.0:
+            winner = 'Tie'
+        elif (pct < 0) == lower_is_better:
+            winner = 'Adaptive'
+        else:
+            winner = 'Fixed'
         rows.append({
             'Metric':          label,
             'Fixed':           f"{fval:.2f}" if isinstance(fval, float) else str(fval),
             'Adaptive':        f"{aval:.2f}" if isinstance(aval, float) else str(aval),
             'Change':          f"{pct:+.1f}%",
-            'Winner':          '🟢 Adaptive' if better else '🔵 Fixed',
+            'Winner':          winner,
         })
     df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=True, hide_index=True)
@@ -483,7 +509,7 @@ def render_comparison_view(sim: ATLASSimulation, config: Dict[str, Any]):
     st.divider()
     col_e1, col_e2, _ = st.columns([1, 1, 2])
     with col_e1:
-        if st.button("💾 Export Fixed CSV"):
+        if st.button("Export Fixed CSV"):
             fname = f"atlas_fixed_{fixed['scenario']}_{fixed['seed']}.csv"
             import io, csv
             buf = io.StringIO()
@@ -491,9 +517,9 @@ def render_comparison_view(sim: ATLASSimulation, config: Dict[str, Any]):
             writer.writerow(['timestep','avg_waiting_time','avg_queue_length','total_vehicles','throughput'])
             for s in fixed['history']:
                 writer.writerow([s.timestep, s.avg_waiting_time, s.avg_queue_length, s.total_vehicles, s.throughput])
-            st.download_button("⬇️ Download", buf.getvalue(), fname, mime='text/csv')
+            st.download_button("Download", buf.getvalue(), fname, mime='text/csv')
     with col_e2:
-        if st.button("💾 Export Adaptive CSV"):
+        if st.button("Export Adaptive CSV"):
             fname = f"atlas_adaptive_{adap['scenario']}_{adap['seed']}.csv"
             import io, csv
             buf = io.StringIO()
@@ -501,7 +527,7 @@ def render_comparison_view(sim: ATLASSimulation, config: Dict[str, Any]):
             writer.writerow(['timestep','avg_waiting_time','avg_queue_length','total_vehicles','throughput'])
             for s in adap['history']:
                 writer.writerow([s.timestep, s.avg_waiting_time, s.avg_queue_length, s.total_vehicles, s.throughput])
-            st.download_button("⬇️ Download", buf.getvalue(), fname, mime='text/csv')
+            st.download_button("Download", buf.getvalue(), fname, mime='text/csv')
 
 
 def _render_single_run_stats(r: dict):
@@ -516,4 +542,3 @@ def _render_single_run_stats(r: dict):
     c2.metric("Max Queue",       f"{stats.get('max_queue_length', 0)}")
     c3.metric("Avg Travel (s)",  f"{stats.get('avg_travel_time', 0):.2f}")
     c3.metric("Completed",       f"{stats.get('total_completed', 0)}")
-
