@@ -18,27 +18,27 @@ def render_scenario_selector() -> str:
     
     scenarios = {
         "normal": {
-            "name": "🚗 Normal Traffic",
+            "name": "Normal Traffic",
             "description": "Balanced stochastic arrivals"
         },
         "heavy": {
-            "name": "🚙🚗🚕 Heavy Traffic",
+            "name": "Heavy Traffic",
             "description": "High arrival rate stress test"
         },
         "unequal": {
-            "name": "⬆️↔️ Unequal Flow",
+            "name": "Unequal Flow",
             "description": "Biased NS/EW distribution"
         },
         "incident": {
-            "name": "🚧 Road Incident",
+            "name": "Road Incident",
             "description": "Dynamic blockage & rerouting"
         },
         "sensor_failure": {
-            "name": "📡❌ Sensor Failure",
+            "name": "Sensor Failure",
             "description": "Partial observability test"
         },
         "comm_failure": {
-            "name": "📶❌ Comm Failure",
+            "name": "Comm Failure",
             "description": "Decentralized operation"
         }
     }
@@ -76,19 +76,19 @@ def render_controls(simulation) -> Dict[str, Any]:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("▶️ Start", use_container_width=True):
+        if st.button("Start", use_container_width=True):
             actions['start'] = True
     
     with col2:
-        if st.button("⏸️ Pause", use_container_width=True):
+        if st.button("Pause", use_container_width=True):
             actions['pause'] = True
     
     with col3:
-        if st.button("⏭️ Step", use_container_width=True):
+        if st.button("Step", use_container_width=True):
             actions['step'] = True
     
     with col4:
-        if st.button("🔄 Reset", use_container_width=True):
+        if st.button("Reset", use_container_width=True):
             actions['reset'] = True
     
     return actions

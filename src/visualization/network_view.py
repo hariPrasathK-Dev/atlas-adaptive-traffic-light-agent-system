@@ -64,7 +64,7 @@ def render_network_view(simulation):
             f"<b>{source} → {dest}</b><br>"
             f"Vehicles: {len(road.vehicles)}<br>"
             f"Congestion: {road.congestion_ratio:.0%}"
-            + ("<br>🚫 BLOCKED" if road.blocked else "")
+            + ("<br>BLOCKED" if road.blocked else "")
         )
         fig.add_trace(go.Scatter(
             x=[sx, dx], y=[sy, dy],
@@ -265,8 +265,8 @@ def render_network_view(simulation):
     c4.metric("Congested Roads",  f"{stats['congested_roads']} / {stats['num_roads']}")
 
     st.caption(
-        "**Nodes:** 🟢 NS/EW Green | 🟡 Yellow | 🔴 All-Red  ·  "
+        "**Nodes:** NS/EW Green | Yellow | All-Red  ·  "
         "**Roads:** Light = Clear | Yellow = Moderate | Orange = Congested | Red = Blocked  ·  "
-        "**Dots:** 🔵 Moving | 🟠 Waiting | 🔴 Stuck"
+        "**Dots:** Moving | Waiting | Stuck"
     )
 
